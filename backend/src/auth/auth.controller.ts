@@ -9,6 +9,8 @@ import {
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { Public } from './decorators/public.decorator';
+import { Permisos } from './decorators/permisos.decorator';
+import { SoloAutenticado } from './decorators/solo-autenticado.decorator';
 import type { AuthenticatedRequest } from './interfaces/authenticated-request.interface';
 
 @Controller('auth')
@@ -21,6 +23,7 @@ export class AuthController {
     return this.authService.login(dto);
   }
 
+  @SoloAutenticado()
   @Get('me')
   obtenerPerfil(@Req() request: AuthenticatedRequest) {
     return {
