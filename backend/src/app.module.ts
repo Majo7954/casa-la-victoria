@@ -8,6 +8,7 @@ import { SupabaseModule } from './supabase/supabase.module';
 import { AuthModule } from './auth/auth.module';
 import { AuthGuard } from './auth/guards/auth.guard';
 import { PermissionsGuard } from './auth/guards/permissions.guard';
+import { UsuariosModule } from './usuarios/usuarios.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { PermissionsGuard } from './auth/guards/permissions.guard';
     }),
     SupabaseModule,
     AuthModule,
+    UsuariosModule,
   ],
   controllers: [AppController],
   providers: [
