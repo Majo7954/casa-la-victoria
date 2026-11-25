@@ -6,15 +6,18 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
+  NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { SupabaseService } from '../supabase/supabase.service';
+
 import { ConsultarUsuariosDto } from './dto/consultar-usuarios.dto';
 import {
   CrearUsuarioDto,
   CodigoRol,
 } from './dto/crear-usuario.dto';
+import { ActualizarUsuarioDto } from './dto/actualizar-usuario.dto';
 
 @Injectable()
 export class UsuariosService {
@@ -35,12 +38,11 @@ export class UsuariosService {
     const desde = (pagina - 1) * limite;
     const hasta = desde + limite - 1;
 
-    const { data, count, error } =
-      await this.supabaseService
-        .getClient()
-        .from('usuarios')
-        .select(
-          `
+    const { data, count, error } = await this.supabaseService
+      .getClient()
+      .from('usuarios')
+      .select(
+        `
           id_usuario,
           nombres,
           apellidos,
@@ -55,15 +57,19 @@ export class UsuariosService {
             id_sucursal,
             nombre
           )
-          `,
-          { count: 'exact' },
-        )
-        .order('fecha_creacion', {
-          ascending: false,
-        })
-        .range(desde, hasta);
+        `,
+        { count: 'exact' },
+      )
+      .order('fecha_creacion', {
+        ascending: false,
+      })
+      .range(desde, hasta);
 
     if (error) {
+      this.logger.error(
+        `Error al listar usuarios: ${error.message}`,
+      );
+
       throw new InternalServerErrorException(
         'No se pudo consultar la lista de usuarios',
       );
@@ -90,7 +96,7 @@ export class UsuariosService {
   }
 
   // ============================================================
-  // 2. REGISTRAR USUARIO Y ENVIAR INVITACIÓN
+  // 2. REGISTRAR USUARIO Y SOLICITAR INVITACIÓN
   // ============================================================
 
   async crearUsuario(dto: CrearUsuarioDto) {
@@ -158,7 +164,7 @@ export class UsuariosService {
     const redirectTo =
       `${frontendUrl.replace(/\/$/, '')}/activar-cuenta`;
 
-    // 5. Crear la identidad y enviar la invitación.
+    // 5. Crear la identidad y solicitar la invitación.
     const { data: invitacion, error: errorInvitacion } =
       await supabase.auth.admin.inviteUserByEmail(
         dto.correo,
@@ -181,7 +187,7 @@ export class UsuariosService {
       );
 
       throw new BadGatewayException(
-        'No se pudo enviar la invitación',
+        'No se pudo procesar la invitación',
       );
     }
 
@@ -191,8 +197,8 @@ export class UsuariosService {
       );
     }
 
-    // 6. Actualizar el perfil creado automáticamente
-    // por el trigger de auth.users.
+    // 6. Completar el perfil creado por el trigger
+    // asociado a auth.users.
     const { data: perfil, error: errorPerfil } =
       await supabase
         .from('usuarios')
@@ -210,7 +216,7 @@ export class UsuariosService {
 
     if (errorPerfil || !perfil) {
       this.logger.error(
-        `Invitación creada, pero el perfil quedó incompleto para el usuario ${invitacion.user.id}`,
+        `No se pudo completar el perfil del usuario ${invitacion.user.id}: ${errorPerfil?.message ?? 'Sin datos devueltos'}`,
       );
 
       throw new InternalServerErrorException(
@@ -229,6 +235,257 @@ export class UsuariosService {
         rol: dto.codigo_rol,
         sucursal: sucursal.nombre,
         estado: 'PENDIENTE_ACTIVACION',
+      },
+    };
+  }
+
+  // ============================================================
+  // 3. MODIFICAR USUARIO
+  // ============================================================
+
+  async actualizarUsuario(
+    idUsuario: string,
+    dto: ActualizarUsuarioDto,
+  ) {
+    const supabase = this.supabaseService.getClient();
+
+    // 1. Verificar que se enviaron campos modificables.
+    const hayCambios = Object.values(dto).some(
+      (valor) => valor !== undefined,
+    );
+
+    if (!hayCambios) {
+      throw new BadRequestException(
+        'Debe proporcionar al menos un campo para modificar',
+      );
+    }
+
+    // 2. Buscar el usuario que se desea modificar.
+    const { data: usuarioActual, error: errorUsuario } =
+      await supabase
+        .from('usuarios')
+        .select(
+          'id_usuario, id_rol, id_sucursal, activo',
+        )
+        .eq('id_usuario', idUsuario)
+        .maybeSingle();
+
+    if (errorUsuario) {
+      throw new InternalServerErrorException(
+        'No se pudo consultar el usuario',
+      );
+    }
+
+    if (!usuarioActual) {
+      throw new NotFoundException(
+        'El usuario no existe',
+      );
+    }
+
+    // 3. Buscar el rol de administrador.
+    const { data: rolAdministrador, error: errorAdmin } =
+      await supabase
+        .from('roles')
+        .select('id_rol')
+        .eq('codigo', CodigoRol.ADMINISTRADOR)
+        .single();
+
+    if (errorAdmin || !rolAdministrador) {
+      throw new InternalServerErrorException(
+        'No se pudo verificar el rol administrador',
+      );
+    }
+
+    // 4. Determinar el rol final del trabajador.
+    let idRolFinal: number | null = usuarioActual.id_rol;
+
+    if (dto.codigo_rol !== undefined) {
+      const { data: nuevoRol, error: errorRol } =
+        await supabase
+          .from('roles')
+          .select('id_rol')
+          .eq('codigo', dto.codigo_rol)
+          .maybeSingle();
+
+      if (errorRol) {
+        throw new InternalServerErrorException(
+          'No se pudo verificar el rol seleccionado',
+        );
+      }
+
+      if (!nuevoRol) {
+        throw new BadRequestException(
+          'El rol seleccionado no existe',
+        );
+      }
+
+      idRolFinal = nuevoRol.id_rol;
+    }
+
+    // 5. Proteger al último administrador activo.
+    const pierdeRolAdministrador =
+      usuarioActual.activo &&
+      usuarioActual.id_rol === rolAdministrador.id_rol &&
+      idRolFinal !== rolAdministrador.id_rol;
+
+    if (pierdeRolAdministrador) {
+      const { count, error: errorConteo } =
+        await supabase
+          .from('usuarios')
+          .select('id_usuario', {
+            count: 'exact',
+            head: true,
+          })
+          .eq('id_rol', rolAdministrador.id_rol)
+          .eq('activo', true);
+
+      if (errorConteo) {
+        throw new InternalServerErrorException(
+          'No se pudo comprobar la cantidad de administradores',
+        );
+      }
+
+      if (count === null || count <= 1) {
+        throw new BadRequestException(
+          'No se puede cambiar el rol del último administrador activo',
+        );
+      }
+    }
+
+    // 6. Determinar la sucursal final.
+    const idSucursalFinal =
+      dto.id_sucursal !== undefined
+        ? dto.id_sucursal
+        : usuarioActual.id_sucursal;
+
+    // 7. Verificar rol y sucursal cuando cambie
+    // cualquiera de estos dos campos.
+    const cambiaAsignacion =
+      dto.codigo_rol !== undefined ||
+      dto.id_sucursal !== undefined;
+
+    if (cambiaAsignacion) {
+      if (idRolFinal === null) {
+        throw new BadRequestException(
+          'El usuario debe tener un rol asignado',
+        );
+      }
+
+      if (idSucursalFinal === null) {
+        throw new BadRequestException(
+          'El usuario debe tener una sucursal asignada',
+        );
+      }
+
+      const { data: sucursal, error: errorSucursal } =
+        await supabase
+          .from('sucursales')
+          .select('id_sucursal, activo, es_matriz')
+          .eq('id_sucursal', idSucursalFinal)
+          .maybeSingle();
+
+      if (errorSucursal) {
+        throw new InternalServerErrorException(
+          'No se pudo verificar la sucursal',
+        );
+      }
+
+      if (!sucursal || !sucursal.activo) {
+        throw new BadRequestException(
+          'La sucursal seleccionada no está disponible',
+        );
+      }
+
+      // Los administradores deben pertenecer a Casa Matriz.
+      if (
+        idRolFinal === rolAdministrador.id_rol &&
+        !sucursal.es_matriz
+      ) {
+        throw new BadRequestException(
+          'El administrador debe pertenecer a Casa Matriz',
+        );
+      }
+    }
+
+    // 8. Preparar únicamente los campos recibidos.
+    const cambios: {
+      nombres?: string;
+      apellidos?: string;
+      id_rol?: number;
+      id_sucursal?: number;
+    } = {};
+
+    if (dto.nombres !== undefined) {
+      cambios.nombres = dto.nombres;
+    }
+
+    if (dto.apellidos !== undefined) {
+      cambios.apellidos = dto.apellidos;
+    }
+
+    if (dto.codigo_rol !== undefined) {
+      if (idRolFinal === null) {
+        throw new BadRequestException(
+          'El rol seleccionado no es válido',
+        );
+      }
+
+      cambios.id_rol = idRolFinal;
+    }
+
+    if (dto.id_sucursal !== undefined) {
+      cambios.id_sucursal = dto.id_sucursal;
+    }
+
+    // 9. Actualizar el perfil del usuario.
+    const { data: actualizado, error: errorActualizar } =
+      await supabase
+        .from('usuarios')
+        .update(cambios)
+        .eq('id_usuario', idUsuario)
+        .select(`
+          id_usuario,
+          nombres,
+          apellidos,
+          activo,
+          fecha_activacion,
+          rol:roles (
+            codigo,
+            nombre
+          ),
+          sucursal:sucursales (
+            id_sucursal,
+            nombre
+          )
+        `)
+        .maybeSingle();
+
+    if (errorActualizar) {
+      this.logger.error(
+        `Error al actualizar usuario ${idUsuario}: ${errorActualizar.message}`,
+      );
+
+      throw new InternalServerErrorException(
+        'No se pudo actualizar el usuario',
+      );
+    }
+
+    if (!actualizado) {
+      throw new NotFoundException(
+        'El usuario ya no existe',
+      );
+    }
+
+    // 10. Devolver el perfil actualizado.
+    return {
+      mensaje: 'Usuario actualizado correctamente',
+      usuario: {
+        ...actualizado,
+        estado: actualizado.activo
+          ? 'ACTIVO'
+          : actualizado.fecha_activacion
+            ? 'INACTIVO'
+            : 'PENDIENTE_ACTIVACION',
       },
     };
   }
