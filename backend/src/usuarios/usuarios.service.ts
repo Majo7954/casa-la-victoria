@@ -8,16 +8,21 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+
 import { ConfigService } from '@nestjs/config';
 
 import { SupabaseService } from '../supabase/supabase.service';
 
 import { ConsultarUsuariosDto } from './dto/consultar-usuarios.dto';
+
 import {
-  CrearUsuarioDto,
   CodigoRol,
+  CrearUsuarioDto,
 } from './dto/crear-usuario.dto';
+
 import { ActualizarUsuarioDto } from './dto/actualizar-usuario.dto';
+
+import { CambiarEstadoUsuarioDto } from './dto/cambiar-estado-usuario.dto';
 
 @Injectable()
 export class UsuariosService {
@@ -141,7 +146,7 @@ export class UsuariosService {
       );
     }
 
-    // 3. Un administrador debe pertenecer a Casa Matriz.
+    // 3. Los administradores deben pertenecer a Casa Matriz.
     if (
       dto.codigo_rol === CodigoRol.ADMINISTRADOR &&
       !sucursal.es_matriz
@@ -151,7 +156,7 @@ export class UsuariosService {
       );
     }
 
-    // 4. Obtener la URL de redirección.
+    // 4. Obtener la URL del frontend.
     const frontendUrl =
       this.configService.get<string>('FRONTEND_URL');
 
@@ -164,7 +169,8 @@ export class UsuariosService {
     const redirectTo =
       `${frontendUrl.replace(/\/$/, '')}/activar-cuenta`;
 
-    // 5. Crear la identidad y solicitar la invitación.
+    // 5. Crear identidad en Supabase Auth
+    // y solicitar el envío de invitación.
     const { data: invitacion, error: errorInvitacion } =
       await supabase.auth.admin.inviteUserByEmail(
         dto.correo,
@@ -197,8 +203,8 @@ export class UsuariosService {
       );
     }
 
-    // 6. Completar el perfil creado por el trigger
-    // asociado a auth.users.
+    // 6. Completar el perfil generado por
+    // el trigger asociado a auth.users.
     const { data: perfil, error: errorPerfil } =
       await supabase
         .from('usuarios')
@@ -249,7 +255,7 @@ export class UsuariosService {
   ) {
     const supabase = this.supabaseService.getClient();
 
-    // 1. Verificar que se enviaron campos modificables.
+    // 1. Verificar que existan campos para modificar.
     const hayCambios = Object.values(dto).some(
       (valor) => valor !== undefined,
     );
@@ -260,13 +266,11 @@ export class UsuariosService {
       );
     }
 
-    // 2. Buscar el usuario que se desea modificar.
+    // 2. Consultar el usuario actual.
     const { data: usuarioActual, error: errorUsuario } =
       await supabase
         .from('usuarios')
-        .select(
-          'id_usuario, id_rol, id_sucursal, activo',
-        )
+        .select('id_usuario, id_rol, id_sucursal, activo')
         .eq('id_usuario', idUsuario)
         .maybeSingle();
 
@@ -282,7 +286,7 @@ export class UsuariosService {
       );
     }
 
-    // 3. Buscar el rol de administrador.
+    // 3. Identificar el rol de administrador.
     const { data: rolAdministrador, error: errorAdmin } =
       await supabase
         .from('roles')
@@ -296,7 +300,7 @@ export class UsuariosService {
       );
     }
 
-    // 4. Determinar el rol final del trabajador.
+    // 4. Determinar el rol final.
     let idRolFinal: number | null = usuarioActual.id_rol;
 
     if (dto.codigo_rol !== undefined) {
@@ -322,7 +326,8 @@ export class UsuariosService {
       idRolFinal = nuevoRol.id_rol;
     }
 
-    // 5. Proteger al último administrador activo.
+    // 5. Evitar cambiar el rol del último
+    // administrador activo.
     const pierdeRolAdministrador =
       usuarioActual.activo &&
       usuarioActual.id_rol === rolAdministrador.id_rol &&
@@ -358,12 +363,12 @@ export class UsuariosService {
         ? dto.id_sucursal
         : usuarioActual.id_sucursal;
 
-    // 7. Verificar rol y sucursal cuando cambie
-    // cualquiera de estos dos campos.
     const cambiaAsignacion =
       dto.codigo_rol !== undefined ||
       dto.id_sucursal !== undefined;
 
+    // 7. Verificar rol y sucursal cuando
+    // se modifica cualquiera de ellos.
     if (cambiaAsignacion) {
       if (idRolFinal === null) {
         throw new BadRequestException(
@@ -396,7 +401,6 @@ export class UsuariosService {
         );
       }
 
-      // Los administradores deben pertenecer a Casa Matriz.
       if (
         idRolFinal === rolAdministrador.id_rol &&
         !sucursal.es_matriz
@@ -407,7 +411,7 @@ export class UsuariosService {
       }
     }
 
-    // 8. Preparar únicamente los campos recibidos.
+    // 8. Construir los cambios recibidos.
     const cambios: {
       nombres?: string;
       apellidos?: string;
@@ -437,7 +441,7 @@ export class UsuariosService {
       cambios.id_sucursal = dto.id_sucursal;
     }
 
-    // 9. Actualizar el perfil del usuario.
+    // 9. Actualizar el perfil.
     const { data: actualizado, error: errorActualizar } =
       await supabase
         .from('usuarios')
@@ -476,7 +480,7 @@ export class UsuariosService {
       );
     }
 
-    // 10. Devolver el perfil actualizado.
+    // 10. Devolver el resultado actualizado.
     return {
       mensaje: 'Usuario actualizado correctamente',
       usuario: {
@@ -486,6 +490,128 @@ export class UsuariosService {
           : actualizado.fecha_activacion
             ? 'INACTIVO'
             : 'PENDIENTE_ACTIVACION',
+      },
+    };
+  }
+
+  // ============================================================
+  // 4. DESACTIVAR Y REACTIVAR USUARIOS
+  // ============================================================
+
+  async cambiarEstadoUsuario(
+    idUsuario: string,
+    dto: CambiarEstadoUsuarioDto,
+  ) {
+    const supabase = this.supabaseService.getClient();
+
+    // 1. Consultar el usuario actual.
+    const { data: usuarioActual, error: errorUsuario } =
+      await supabase
+        .from('usuarios')
+        .select(`
+          id_usuario,
+          activo,
+          fecha_activacion,
+          id_rol
+        `)
+        .eq('id_usuario', idUsuario)
+        .maybeSingle();
+
+    if (errorUsuario) {
+      throw new InternalServerErrorException(
+        'No se pudo consultar el usuario',
+      );
+    }
+
+    if (!usuarioActual) {
+      throw new NotFoundException(
+        'El usuario no existe',
+      );
+    }
+
+    // 2. Impedir cambios administrativos de estado
+    // en cuentas que aún no completaron su activación.
+    if (!usuarioActual.fecha_activacion) {
+      throw new ConflictException(
+        'La cuenta está pendiente de activación',
+      );
+    }
+
+    // 3. Evitar aplicar nuevamente el mismo estado.
+    if (usuarioActual.activo === dto.activo) {
+      throw new ConflictException(
+        dto.activo
+          ? 'El usuario ya se encuentra activo'
+          : 'El usuario ya se encuentra inactivo',
+      );
+    }
+
+    // 4. Actualizar el estado del usuario.
+    // La protección del último administrador
+    // se refuerza mediante un trigger en PostgreSQL.
+    const { data: actualizado, error: errorActualizar } =
+      await supabase
+        .from('usuarios')
+        .update({
+          activo: dto.activo,
+        })
+        .eq('id_usuario', idUsuario)
+        .eq('activo', usuarioActual.activo)
+        .select(`
+          id_usuario,
+          nombres,
+          apellidos,
+          activo,
+          fecha_activacion,
+          rol:roles (
+            codigo,
+            nombre
+          ),
+          sucursal:sucursales (
+            id_sucursal,
+            nombre
+          )
+        `)
+        .maybeSingle();
+
+    if (errorActualizar) {
+      const esUltimoAdministrador =
+        errorActualizar.message.includes(
+          'No se puede desactivar o cambiar el rol del último administrador activo',
+        );
+
+      if (esUltimoAdministrador) {
+        throw new BadRequestException(
+          'No se puede desactivar al último administrador activo',
+        );
+      }
+
+      this.logger.error(
+        `Error al cambiar el estado del usuario ${idUsuario}: ${errorActualizar.message}`,
+      );
+
+      throw new InternalServerErrorException(
+        'No se pudo cambiar el estado del usuario',
+      );
+    }
+
+    // 5. Detectar cambios concurrentes.
+    if (!actualizado) {
+      throw new ConflictException(
+        'El estado del usuario cambió durante la operación. Intente nuevamente.',
+      );
+    }
+
+    // 6. Devolver el estado actualizado.
+    return {
+      mensaje: dto.activo
+        ? 'Usuario reactivado correctamente'
+        : 'Usuario desactivado correctamente',
+      usuario: {
+        ...actualizado,
+        estado: actualizado.activo
+          ? 'ACTIVO'
+          : 'INACTIVO',
       },
     };
   }
