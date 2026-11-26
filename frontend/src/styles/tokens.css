@@ -1,0 +1,92 @@
+
+:root {
+  /* Colores institucionales */
+  --color-primary: #315e48;
+  --color-on-primary: #ffffff;
+  --color-primary-hover: #264b39;
+  --color-primary-container: #d8ebd9;
+  --color-on-primary-container: #1e3f2f;
+
+  --color-secondary: #91b894;
+  --color-on-secondary: #1b3324;
+  --color-secondary-container: #e9f2e8;
+
+  /* Fondos y superficies */
+  --color-background: #e9f2e8;
+  --color-surface: #ffffff;
+  --color-surface-variant: #f4f8f4;
+  --color-surface-low: #f8fbf8;
+  --color-surface-container: #eff5ee;
+  --color-surface-high: #e2ede1;
+
+  /* Textos */
+  --color-text: #25372d;
+  --color-text-secondary: #64736a;
+
+  /* Bordes */
+  --color-outline: #c5d3c7;
+  --color-outline-variant: #dce6dd;
+
+  /* Menú lateral */
+  --color-sidebar: #315e48;
+  --color-sidebar-text: #ffffff;
+  --color-sidebar-muted: #b8d2c2;
+  --color-sidebar-active: #3e7258;
+  --color-sidebar-hover: #29503d;
+
+  /* Estados */
+  --color-success: #1f6e43;
+  --color-success-container: #dcf3e5;
+  --color-success-text: #154d2e;
+
+  --color-warning: #9a6300;
+  --color-warning-container: #fef0d1;
+  --color-warning-text: #6b4400;
+
+  --color-error: #b42318;
+  --color-error-container: #fde8e7;
+  --color-error-text: #7a1810;
+
+  --color-info: #1e5f8a;
+  --color-info-container: #e1f0fa;
+  --color-info-text: #144261;
+
+  --color-disabled-bg: #e6ece7;
+  --color-disabled-text: #55645b;
+
+  /* Tipografía */
+  --font-family: 'Inter', sans-serif;
+
+  --font-size-xs: 12px;
+  --font-size-sm: 14px;
+  --font-size-md: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 20px;
+  --font-size-2xl: 24px;
+  --font-size-3xl: 36px;
+
+  /* Espaciados */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Bordes redondeados */
+  --radius-sm: 4px;
+  --radius-default: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* Elevación */
+  --shadow-card: 0 1px 2px rgba(37, 55, 45, 0.04);
+  --shadow-modal: 0 8px 24px rgba(37, 55, 45, 0.12);
+
+  /* Transiciones */
+  --transition-fast: 120ms ease-out;
+  --transition-enter: 200ms cubic-bezier(0.2, 0, 0, 1);
+}

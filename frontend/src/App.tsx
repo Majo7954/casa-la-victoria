@@ -1,122 +1,116 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+
+import { useState } from 'react';
+
+import { Button } from './components/ui/Button/Button';
+import { InputField } from './components/ui/InputField/InputField';
+
+import './App.css';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [correo, setCorreo] = useState('');
+  const [contrasena, setContrasena] = useState('');
+  const [mostrarError, setMostrarError] = useState(false);
+
+  function manejarPrueba() {
+    if (!correo || !contrasena) {
+      setMostrarError(true);
+      return;
+    }
+
+    setMostrarError(false);
+
+    alert('¡Componentes funcionando correctamente!');
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
+    <main className="demo-page">
+      <section className="demo-card">
+        <div className="demo-heading">
+          <p className="demo-eyebrow">
+            Sistema de diseño
+          </p>
+
+          <h1>Casa La Victoria</h1>
+
           <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
+            Primera prueba de componentes reutilizables
+            con React y TypeScript.
           </p>
         </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
 
-      <div className="ticks"></div>
+        <div className="demo-form">
+          <InputField
+            id="correo"
+            name="correo"
+            label="Correo electrónico"
+            type="email"
+            placeholder="usuario@correo.com"
+            autoComplete="email"
+            value={correo}
+            onChange={(event) =>
+              setCorreo(event.target.value)
+            }
+            error={
+              mostrarError && !correo
+                ? 'Ingresa tu correo electrónico.'
+                : undefined
+            }
+          />
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+          <InputField
+            id="contrasena"
+            name="contrasena"
+            label="Contraseña"
+            type="password"
+            placeholder="Ingresa tu contraseña"
+            autoComplete="current-password"
+            value={contrasena}
+            onChange={(event) =>
+              setContrasena(event.target.value)
+            }
+            error={
+              mostrarError && !contrasena
+                ? 'Ingresa tu contraseña.'
+                : undefined
+            }
+          />
+
+          <Button
+            fullWidth
+            onClick={manejarPrueba}
+          >
+            Probar componentes
+          </Button>
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
+
+        <div className="demo-actions">
+          <h2>Variantes de botones</h2>
+
+          <div className="demo-buttons">
+            <Button variant="primary">
+              Guardar usuario
+            </Button>
+
+            <Button variant="secondary">
+              Confirmar
+            </Button>
+
+            <Button variant="outline">
+              Cancelar
+            </Button>
+
+            <Button variant="danger">
+              Desactivar cuenta
+            </Button>
+
+            <Button disabled>
+              Deshabilitado
+            </Button>
+          </div>
         </div>
       </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+    </main>
+  );
 }
 
-export default App
+export default App;

@@ -1,0 +1,89 @@
+
+.ui-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.ui-field__label {
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.ui-field__control {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--color-outline);
+  border-radius: var(--radius-default);
+  background: var(--color-surface);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.ui-field__control:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-container);
+}
+
+.ui-field__control--error {
+  border-color: var(--color-error);
+}
+
+.ui-field__control--error:focus-within {
+  box-shadow: 0 0 0 3px var(--color-error-container);
+}
+
+.ui-field__control--disabled {
+  background: var(--color-disabled-bg);
+}
+
+.ui-field__input {
+  width: 100%;
+  min-width: 0;
+  padding: 11px 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 14px;
+}
+
+.ui-field__input:focus-visible {
+  outline: 0;
+}
+
+.ui-field__input::placeholder {
+  color: var(--color-text-secondary);
+}
+
+.ui-field__input:disabled {
+  color: var(--color-disabled-text);
+  cursor: not-allowed;
+}
+
+.ui-field__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+}
+
+.ui-field__hint {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.ui-field__error {
+  margin: 0;
+  color: var(--color-error);
+  font-size: 12px;
+  line-height: 16px;
+}
