@@ -2,26 +2,54 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import cookieParser from 'cookie-parser';
 
 import { AppModule } from './app.module';
 
 async function bootstrap() {
+  // ============================================================
+  // 1. CREAR APLICACIÓN NESTJS
+  // ============================================================
+
   const app = await NestFactory.create(AppModule);
 
   const configService = app.get(ConfigService);
 
-  // Permitir solicitudes únicamente desde el frontend.
+  // ============================================================
+  // 2. CONFIGURAR COOKIES
+  // ============================================================
+
+  // Permite leer las cookies HTTP mediante request.cookies.
+  app.use(cookieParser());
+
+  // ============================================================
+  // 3. CONFIGURAR CORS
+  // ============================================================
+
   const frontendUrl =
     configService.get<string>('FRONTEND_URL') ??
     'http://localhost:5173';
 
   app.enableCors({
     origin: frontendUrl,
-    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+    methods: [
+      'GET',
+      'POST',
+      'PATCH',
+      'PUT',
+      'DELETE',
+    ],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+    ],
   });
 
-  // Validación global de datos recibidos.
+  // ============================================================
+  // 4. VALIDACIÓN GLOBAL DE SOLICITUDES
+  // ============================================================
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -30,7 +58,12 @@ async function bootstrap() {
     }),
   );
 
-  const port = configService.get<number>('PORT') ?? 3000;
+  // ============================================================
+  // 5. INICIAR SERVIDOR
+  // ============================================================
+
+  const port =
+    configService.get<number>('PORT') ?? 3000;
 
   await app.listen(port);
 }
