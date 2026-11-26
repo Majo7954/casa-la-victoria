@@ -12,6 +12,8 @@ interface InputFieldProps
   error?: string;
   hint?: string;
   leftIcon?: ReactNode;
+  rightAction?: ReactNode;
+  labelAction?: ReactNode;
 }
 
 export function InputField({
@@ -20,6 +22,8 @@ export function InputField({
   error,
   hint,
   leftIcon,
+  rightAction,
+  labelAction,
   className = '',
   ...rest
 }: InputFieldProps) {
@@ -44,12 +48,23 @@ export function InputField({
 
   return (
     <div className={`ui-field ${className}`}>
-      <label
-        className="ui-field__label"
-        htmlFor={inputId}
-      >
-        {label}
-      </label>
+      <div className="ui-field__heading">
+        <label
+          className="ui-field__label"
+          htmlFor={inputId}
+        >
+          {label}
+          {rest.required && (
+            <span aria-hidden="true"> *</span>
+          )}
+        </label>
+
+        {labelAction && (
+          <div className="ui-field__label-action">
+            {labelAction}
+          </div>
+        )}
+      </div>
 
       <div
         className={[
@@ -75,7 +90,14 @@ export function InputField({
           className="ui-field__input"
           aria-invalid={error ? true : undefined}
           aria-describedby={descripcion}
+          aria-required={rest.required || undefined}
         />
+
+        {rightAction && (
+          <div className="ui-field__right-action">
+            {rightAction}
+          </div>
+        )}
       </div>
 
       {hint && (

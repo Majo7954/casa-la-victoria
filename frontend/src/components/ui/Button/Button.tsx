@@ -19,6 +19,7 @@ interface ButtonProps
   variant?: ButtonVariant;
   size?: ButtonSize;
   isLoading?: boolean;
+  loadingLabel?: string;
   fullWidth?: boolean;
   leftIcon?: ReactNode;
   children: ReactNode;
@@ -28,6 +29,7 @@ export function Button({
   variant = 'primary',
   size = 'md',
   isLoading = false,
+  loadingLabel = 'Procesando...',
   fullWidth = false,
   leftIcon,
   children,
@@ -71,7 +73,7 @@ export function Button({
       )}
 
       <span>
-        {isLoading ? 'Procesando...' : children}
+        {isLoading ? loadingLabel : children}
       </span>
     </button>
   );
