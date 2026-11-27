@@ -26,12 +26,11 @@ export interface UsuarioSesion {
   sucursal: SucursalUsuario;
 }
 
-export interface RespuestaLogin {
+export interface RespuestaSesion {
   mensaje: string;
   usuario: UsuarioSesion;
   sesion: {
     access_token: string;
-    refresh_token: string;
     expires_in: number;
   };
 }
@@ -47,6 +46,10 @@ export interface PerfilAutenticado {
 interface RespuestaPerfil {
   mensaje: string;
   usuario: PerfilAutenticado;
+}
+
+interface RespuestaLogout {
+  mensaje: string;
 }
 
 // ============================================================
@@ -97,40 +100,79 @@ async function procesarRespuesta<T>(
 }
 
 // ============================================================
-// 4. INICIO DE SESIÓN
+// 4. INICIAR SESIÓN
 // ============================================================
 
 export async function iniciarSesion(
   correo: string,
   contrasena: string,
-): Promise<RespuestaLogin> {
-  const respuesta = await fetch(`${API_URL}/auth/login`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
+): Promise<RespuestaSesion> {
+  const respuesta = await fetch(
+    `${API_URL}/auth/login`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        correo,
+        contrasena,
+      }),
     },
-    body: JSON.stringify({
-      correo,
-      contrasena,
-    }),
-  });
+  );
 
-  return procesarRespuesta<RespuestaLogin>(respuesta);
+  return procesarRespuesta<RespuestaSesion>(respuesta);
 }
 
 // ============================================================
-// 5. CONSULTAR PERFIL AUTENTICADO
+// 5. RENOVAR SESIÓN
+// ============================================================
+
+export async function renovarSesion(): Promise<RespuestaSesion> {
+  const respuesta = await fetch(
+    `${API_URL}/auth/refresh`,
+    {
+      method: 'POST',
+      credentials: 'include',
+    },
+  );
+
+  return procesarRespuesta<RespuestaSesion>(respuesta);
+}
+
+// ============================================================
+// 6. CERRAR SESIÓN
+// ============================================================
+
+export async function cerrarSesionRemota(): Promise<RespuestaLogout> {
+  const respuesta = await fetch(
+    `${API_URL}/auth/logout`,
+    {
+      method: 'POST',
+      credentials: 'include',
+    },
+  );
+
+  return procesarRespuesta<RespuestaLogout>(respuesta);
+}
+
+// ============================================================
+// 7. CONSULTAR PERFIL AUTENTICADO
 // ============================================================
 
 export async function consultarPerfil(
   accessToken: string,
 ): Promise<RespuestaPerfil> {
-  const respuesta = await fetch(`${API_URL}/auth/me`, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
+  const respuesta = await fetch(
+    `${API_URL}/auth/me`,
+    {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
     },
-  });
+  );
 
   return procesarRespuesta<RespuestaPerfil>(respuesta);
 }
